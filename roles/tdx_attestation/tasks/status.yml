@@ -1,6 +1,15 @@
 ---
 # Check TDX attestation status via TDX proxy
 
+- name: Wait for TDX proxy to be ready
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ tdx_proxy_port }}"
+    timeout: 120
+    state: started
+  register: tdx_port_check
+  ignore_errors: true
+
 - name: Check TDX attestation status
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ tdx_proxy_port }}{{ tdx_proxy_status_endpoint }}"
@@ -8,12 +17,44 @@
     timeout: 30
     return_content: yes
   register: tdx_status
-  retries: 3
-  delay: 5
+  retries: 10
+  delay: 10
+  until: tdx_status.status == 200
+  when: tdx_port_check is succeeded
 
 - name: Display TDX status
   ansible.builtin.debug:
     var: tdx_status.json
+  when: tdx_status.status | default(0) == 200
+
+- name: Display TDX proxy connection error
+  ansible.builtin.debug:
+    msg: "TDX proxy not reachable on port {{ tdx_proxy_port }}. Fetching logs..."
+  when: tdx_port_check is failed or tdx_status.status | default(0) != 200
+
+- name: Get VM serial log on failure
+  ansible.builtin.command:
+    cmd: tail -100 /var/log/libvirt/qemu/{{ vm_name }}-serial.log
+  register: vm_serial_log
+  ignore_errors: true
+  when: tdx_port_check is failed or tdx_status.status | default(0) != 200
+
+- name: Display VM serial log
+  ansible.builtin.debug:
+    msg: "{{ vm_serial_log.stdout_lines | default(['No serial log available']) }}"
+  when: tdx_port_check is failed or tdx_status.status | default(0) != 200
+
+- name: Check if VM is running
+  ansible.builtin.command:
+    cmd: virsh domstate {{ vm_name }}
+  register: vm_state
+  ignore_errors: true
+  when: tdx_port_check is failed or tdx_status.status | default(0) != 200
+
+- name: Display VM state
+  ansible.builtin.debug:
+    msg: "VM {{ vm_name }} state: {{ vm_state.stdout | default('unknown') }}"
+  when: tdx_port_check is failed or tdx_status.status | default(0) != 200
 
 - name: Verify TDX is available
   ansible.builtin.assert:
@@ -21,4 +62,4 @@
       - tdx_status.json.available | default(false)
     fail_msg: "TDX is not available on this system"
     success_msg: "TDX is available and ready for attestation"
-  when: require_tdx | default(true)
+  when: require_tdx | default(true) and tdx_status.status | default(0) == 200

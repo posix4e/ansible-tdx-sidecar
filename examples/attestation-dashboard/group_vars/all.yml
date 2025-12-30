@@ -1,0 +1,32 @@
+---
+# Attestation Dashboard VM deployment configuration
+# Deployed via: ansible-playbook playbooks/deploy.yml -e "@examples/attestation-dashboard/group_vars/all.yml"
+
+# VM Configuration
+vm_name: attestation-dashboard
+vm_memory_mb: 4096
+vm_cpus: 2
+vm_disk_size_gb: 20
+
+# Disable TDX - dashboard is the verifier, not the verified
+tdx_enabled: false
+
+# Application Configuration
+app_image: "ghcr.io/posix4e/attestation-dashboard:latest"
+app_port: 8080
+app_container_port: 8080
+app_health_check_path: /api/v1/health
+
+# Enable PostgreSQL sidecar for database
+enable_postgres: true
+postgres_user: postgres
+postgres_password: postgres
+postgres_database: attestation
+
+# No MinIO needed
+enable_minio: false
+
+# Application environment variables
+app_environment:
+  DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/attestation"
+  DEBUG: "false"

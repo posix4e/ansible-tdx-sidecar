@@ -23,11 +23,13 @@ chpasswd:
       password: {{ guest_password }}
       type: text
 
+{% if tdx_enabled | default(true) %}
 # Add TDX attestation PPA for quote generation support
 apt:
   sources:
     tdx-attestation:
       source: "ppa:kobuk-team/tdx-attestation-release"
+{% endif %}
 
 # Run apt-get update and upgrade before installing packages
 package_update: true
@@ -36,10 +38,13 @@ package_upgrade: true
 packages:
   - docker.io
   - docker-compose-v2
+{% if tdx_enabled | default(true) %}
   - libtdx-attest
   - libtdx-attest-dev
+{% endif %}
 
 write_files:
+{% if tdx_enabled | default(true) %}
   - path: /opt/app/tdx-attestation-proxy.py
     permissions: '0755'
     content: |
@@ -59,6 +64,7 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+{% endif %}
 
   - path: /opt/app/docker-compose.yml
     permissions: '0644'
@@ -84,13 +90,17 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
+{% if tdx_enabled | default(true) %}
   # Install linux-modules-extra for TDX configfs-tsm support
   - apt-get install -y linux-modules-extra-$(uname -r) || true
+{% endif %}
   # Reload systemd to pick up new service files
   - systemctl daemon-reload
+{% if tdx_enabled | default(true) %}
   # Start TDX attestation proxy
   - systemctl enable tdx-attestation-proxy
   - systemctl start tdx-attestation-proxy
+{% endif %}
   # Ensure docker is running and wait for it to be ready
   - systemctl enable docker
   - systemctl start docker
@@ -103,13 +113,19 @@ runcmd:
   - systemctl start app || sleep 10 && systemctl start app || true
 
 final_message: |
+{% if tdx_enabled | default(true) %}
   TDX Application VM is ready!
 
   TDX Attestation Proxy: http://localhost:8081
+{% else %}
+  Application VM is ready!
+{% endif %}
   Application: http://localhost:{{ app_container_port | default(app_port) }}
 {% if enable_minio | default(false) %}
   Minio Console: http://localhost:9001
 {% endif %}
+{% if tdx_enabled | default(true) %}
 
   To check TDX status: curl http://localhost:8081/status
   To get TDX quote: curl http://localhost:8081/quote
+{% endif %}

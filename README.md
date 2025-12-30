@@ -209,12 +209,39 @@ ansible-tdx-sidecar/
 │   │       └── vm.xml.j2
 │   └── tdx_attestation/         # Quote generation
 └── examples/
-    └── hello-world/             # Example application
+    ├── attestation-dashboard/   # TDX Attestation Dashboard & Proxy
+    └── sample-tdx-app/          # Self-registering TDX application
 ```
 
 ## Examples
 
-See the `examples/hello-world/` directory for a complete example application demonstrating TDX attestation integration.
+### Attestation Dashboard & Proxy
+
+The `examples/attestation-dashboard/` provides a full-featured verification system:
+
+- **Application Registry**: Register TDX applications with GitHub and container image info
+- **DCAP Verification**: Verify TDX quotes using Intel's Quote Verification Library
+- **GitHub Attestation**: Verify container images were built by GitHub Actions (SLSA provenance)
+- **Measurement Verification**: Compare TDX measurements against expected baselines
+- **Attestation Proxy**: Reverse proxy that only forwards traffic to verified applications
+
+```bash
+cd examples/attestation-dashboard
+docker-compose up -d
+# Dashboard available at http://localhost:8080
+```
+
+### Sample TDX Application
+
+The `examples/sample-tdx-app/` demonstrates how to build TDX-aware applications that self-register with the attestation dashboard on startup.
+
+```bash
+# Deploy to TDX VM
+ansible-playbook playbooks/deploy.yml \
+  -e "@examples/sample-tdx-app/group_vars/all.yml"
+```
+
+See each example's README for detailed documentation.
 
 ## Troubleshooting
 
