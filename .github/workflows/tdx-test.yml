@@ -21,7 +21,7 @@ jobs:
 
       - name: Install Ansible
         run: |
-          pip install --user ansible
+          pip3 install --user ansible
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Deploy test application
@@ -31,6 +31,7 @@ jobs:
             -e "app_port=8080" \
             -e "app_health_check_path=/" \
             -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -e "ansible_connection=local" \
             -i inventory/hosts.yml
         timeout-minutes: 15
 
@@ -38,6 +39,7 @@ jobs:
         run: |
           ansible-playbook playbooks/status.yml \
             -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -e "ansible_connection=local" \
             -i inventory/hosts.yml
 
       - name: Get TDX measurements
@@ -45,6 +47,7 @@ jobs:
           ansible-playbook playbooks/measure.yml \
             -e "vm_name=tdx-test-${{ github.run_id }}" \
             -e "measurements_output_file=${{ github.workspace }}/measurements.json" \
+            -e "ansible_connection=local" \
             -i inventory/hosts.yml
 
       - name: Display measurements
@@ -63,4 +66,5 @@ jobs:
         run: |
           ansible-playbook playbooks/destroy.yml \
             -e "vm_name=tdx-test-${{ github.run_id }}" \
-            -i inventory/hosts.yml
+            -e "ansible_connection=local" \
+            -i inventory/hosts.yml || true
