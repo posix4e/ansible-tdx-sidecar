@@ -6,9 +6,11 @@ profile: moderate
 # Skip certain rules that are too noisy for this project
 skip_list:
   - yaml[line-length]  # Long lines in templates are fine
+  - yaml[truthy]       # Allow yes/no in addition to true/false
   - no-changed-when    # Many commands don't have changed_when
   - command-instead-of-shell  # Shell is needed for complex commands
   - risky-shell-pipe   # Pipes are intentional
+  - var-naming[no-role-prefix]  # Don't require role prefixes on variables
 
 # Exclude example files from strict linting
 exclude_paths:

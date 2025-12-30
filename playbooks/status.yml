@@ -34,7 +34,7 @@
 
     - name: Display application status
       ansible.builtin.debug:
-        msg: "Application: {{ 'Running (port ' + app_port|string + ')' if app_check.status | default(0) in [200, 301, 302, 308] else 'Not available' }}"
+        msg: "Application: {{ 'Running (port ' + app_port | string + ')' if app_check.status | default(0) in [200, 301, 302, 308] else 'Not available' }}"
 
     - name: Check TDX attestation proxy status
       ansible.builtin.uri:
