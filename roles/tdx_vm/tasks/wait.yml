@@ -30,7 +30,19 @@
 
 - name: Display application status
   ansible.builtin.debug:
-    msg: "Application: {{ 'Running' if app_check.status | default(0) in [200, 301, 302, 308] else 'Not ready yet' }}"
+    msg: "Application: {{ 'Running' if app_check.status | default(0) in [200, 301, 302, 308] else 'Not ready - status ' + (app_check.status | default('unknown') | string) }}"
+
+- name: Get VM serial log if app not ready
+  ansible.builtin.command:
+    cmd: tail -50 /var/log/libvirt/qemu/{{ vm_name }}-serial.log
+  register: app_fail_log
+  ignore_errors: true
+  when: app_check.status | default(0) not in [200, 301, 302, 308]
+
+- name: Display VM log if app not ready
+  ansible.builtin.debug:
+    msg: "{{ app_fail_log.stdout_lines | default(['No log available']) }}"
+  when: app_check.status | default(0) not in [200, 301, 302, 308]
 
 - name: Check TDX attestation proxy status
   ansible.builtin.uri:
