@@ -34,13 +34,14 @@
 
 - name: Check TDX attestation proxy status
   ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ tdx_proxy_port | default(8082) }}/status"
+    url: "http://127.0.0.1:{{ tdx_proxy_host_port | default(8082) }}/status"
     method: GET
     timeout: 10
   register: tdx_status
   failed_when: false
+  when: tdx_enabled | default(true)
 
 - name: Display TDX status
   ansible.builtin.debug:
     msg: "TDX Proxy: {{ tdx_status.json | default({'available': 'unknown'}) }}"
-  when: tdx_status.status | default(0) == 200
+  when: tdx_enabled | default(true) and tdx_status.status | default(0) == 200

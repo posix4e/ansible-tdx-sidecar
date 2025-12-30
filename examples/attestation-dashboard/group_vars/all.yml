@@ -8,6 +8,9 @@ vm_memory_mb: 4096
 vm_cpus: 2
 vm_disk_size_gb: 20
 
+# Disable TDX - dashboard is the verifier, not the verified
+tdx_enabled: false
+
 # Application Configuration
 app_image: "ghcr.io/posix4e/attestation-dashboard:latest"
 app_port: 8080
