@@ -16,37 +16,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Stop existing dashboard
+      - name: Build dashboard image
         run: |
-          cd examples/attestation-dashboard
-          docker compose down || true
+          docker build -t ghcr.io/${{ github.repository_owner }}/attestation-dashboard:latest \
+            examples/attestation-dashboard
 
-      - name: Build and start dashboard
+      - name: Push dashboard image to GHCR
         run: |
-          cd examples/attestation-dashboard
-          docker compose up -d --build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/attestation-dashboard:latest
+
+      - name: Check/Install Ansible
+        run: |
+          if command -v ansible-playbook &> /dev/null; then
+            echo "Ansible already installed: $(ansible --version | head -1)"
+          else
+            python3 -m pip install --user ansible
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Deploy dashboard VM
+        run: |
+          ansible-playbook playbooks/deploy.yml \
+            -e "@examples/attestation-dashboard/group_vars/all.yml" \
+            -e "ansible_connection=local" \
+            -i inventory/hosts.yml
+        timeout-minutes: 15
 
       - name: Wait for dashboard to be healthy
         run: |
           echo "Waiting for dashboard to start..."
-          for i in {1..30}; do
+          for i in {1..60}; do
             if curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
               echo "Dashboard is healthy!"
               exit 0
             fi
-            echo "Attempt $i/30 - waiting..."
-            sleep 2
+            echo "Attempt $i/60 - waiting..."
+            sleep 5
           done
           echo "Dashboard failed to start"
-          docker compose -f examples/attestation-dashboard/docker-compose.yml logs
           exit 1
 
       - name: Show dashboard status
         run: |
           echo "=== Dashboard Status ==="
-          curl -s http://localhost:8080/api/v1/health | jq .
+          curl -s http://localhost:8080/api/v1/health | jq . || echo "Health endpoint not responding"
           echo ""
-          echo "=== Running Containers ==="
-          docker compose -f examples/attestation-dashboard/docker-compose.yml ps
+          echo "=== VM Status ==="
+          virsh list --all | grep attestation-dashboard || echo "VM not found"
