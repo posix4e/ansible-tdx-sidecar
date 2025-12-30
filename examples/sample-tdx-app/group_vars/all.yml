@@ -1,0 +1,41 @@
+---
+# Sample TDX Application deployment configuration
+# Uses the main ansible-tdx-sidecar playbooks for deployment
+
+# VM Configuration
+vm_name: sample-tdx-app
+vm_memory_mb: 2048
+vm_cpus: 2
+vm_disk_size_gb: 10
+
+# Application Configuration
+# Build and push this image first:
+#   docker build -t your-registry/sample-tdx-app:latest examples/sample-tdx-app
+#   docker push your-registry/sample-tdx-app:latest
+app_image: "your-registry/sample-tdx-app:latest"
+app_port: 8080
+app_health_check_path: /health
+
+# Self-registration configuration
+app_environment:
+  # Dashboard URL - update this to your dashboard's address
+  DASHBOARD_URL: "http://dashboard-host:8080"
+
+  # Application identity for registration
+  APP_NAME: "sample-tdx-app"
+  GITHUB_ORG: "your-org"
+  GITHUB_REPO: "your-repo"
+  IMAGE_REPO: "your-registry/sample-tdx-app"
+  IMAGE_TAG: "latest"
+
+  # Set to the image digest for GitHub attestation verification
+  # IMAGE_DIGEST: "sha256:..."
+
+  # Registration behavior
+  CAPTURE_BASELINE: "true"
+  REGISTRATION_RETRIES: "5"
+  REGISTRATION_RETRY_DELAY: "10"
+
+# No additional sidecars needed
+enable_postgres: false
+enable_minio: false
