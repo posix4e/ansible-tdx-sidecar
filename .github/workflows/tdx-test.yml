@@ -1,0 +1,66 @@
+name: TDX Integration Test
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [main]
+    paths:
+      - 'roles/**'
+      - 'playbooks/**'
+      - 'group_vars/**'
+
+jobs:
+  test:
+    runs-on: [self-hosted, tdx]
+    env:
+      INTEL_PCCS_API_KEY: ${{ secrets.INTEL_PCCS_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          pip install --user ansible
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Deploy test application
+        run: |
+          ansible-playbook playbooks/deploy.yml \
+            -e "app_image=nginx:alpine" \
+            -e "app_port=8080" \
+            -e "app_health_check_path=/" \
+            -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -i inventory/hosts.yml
+        timeout-minutes: 15
+
+      - name: Check status
+        run: |
+          ansible-playbook playbooks/status.yml \
+            -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -i inventory/hosts.yml
+
+      - name: Get TDX measurements
+        run: |
+          ansible-playbook playbooks/measure.yml \
+            -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -e "measurements_output_file=${{ github.workspace }}/measurements.json" \
+            -i inventory/hosts.yml
+
+      - name: Display measurements
+        run: |
+          echo "=== TDX Measurements ==="
+          cat measurements.json | jq .
+
+      - name: Upload measurements artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tdx-measurements
+          path: measurements.json
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ansible-playbook playbooks/destroy.yml \
+            -e "vm_name=tdx-test-${{ github.run_id }}" \
+            -i inventory/hosts.yml

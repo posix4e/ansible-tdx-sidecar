@@ -1,0 +1,19 @@
+# Ansible-lint configuration
+# https://ansible.readthedocs.io/projects/lint/configuring/
+
+profile: moderate
+
+# Skip certain rules that are too noisy for this project
+skip_list:
+  - yaml[line-length]  # Long lines in templates are fine
+  - no-changed-when    # Many commands don't have changed_when
+  - command-instead-of-shell  # Shell is needed for complex commands
+  - risky-shell-pipe   # Pipes are intentional
+
+# Exclude example files from strict linting
+exclude_paths:
+  - examples/
+  - .github/
+
+# Treat warnings as errors in CI
+strict: false
