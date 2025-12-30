@@ -1,0 +1,47 @@
+---
+# Deploy TDX Application VM
+# Usage: ansible-playbook playbooks/deploy.yml -e "app_image=your-registry/your-app:tag"
+
+- name: Deploy TDX Application
+  hosts: tdx_host
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Generate ephemeral guest password if not provided
+      ansible.builtin.set_fact:
+        guest_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+      when: guest_password | default('') == ''
+      no_log: true
+
+    - name: Display deployment parameters
+      ansible.builtin.debug:
+        msg: |
+          Deploying TDX Application:
+            VM Name: {{ vm_name }}
+            App Image: {{ app_image }}
+            Memory: {{ vm_memory_mb }}MB
+            CPUs: {{ vm_cpus }}
+            SSH Port: {{ vm_ssh_port }}
+            App Port: {{ app_port }}
+
+    # QGS uses vsock port 4050 by default (package default)
+    # No configuration changes needed
+
+    - name: Include TDX VM role
+      ansible.builtin.include_role:
+        name: tdx_vm
+      tags:
+        - deploy
+
+    - name: Display deployment complete message
+      ansible.builtin.debug:
+        msg: |
+          TDX Application deployed successfully!
+
+          SSH Access: ssh -p {{ vm_ssh_port }} {{ guest_user }}@127.0.0.1
+          Application: http://127.0.0.1:{{ app_port }}
+          TDX Proxy: http://127.0.0.1:{{ tdx_proxy_host_port | default(8082) }}/status

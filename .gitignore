@@ -1,0 +1,39 @@
+# Ansible
+*.retry
+inventory/hosts.yml.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit these!)
+*.pem
+*.key
+secrets.yml
+vault.yml
+
+# Output files
+measurements.json
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak

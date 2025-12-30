@@ -1,0 +1,103 @@
+services:
+{% if enable_postgres | default(false) %}
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: {{ postgres_user | default('postgres') }}
+      POSTGRES_PASSWORD: {{ postgres_password | default('postgres') }}
+      POSTGRES_DB: {{ postgres_database | default('app') }}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ postgres_user | default('postgres') }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+{% endif %}
+{% if enable_minio | default(false) %}
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: {{ minio_access_key | default('minioadmin') }}
+      MINIO_ROOT_PASSWORD: {{ minio_secret_key | default('minioadmin') }}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set myminio http://minio:9000 {{ minio_access_key | default('minioadmin') }} {{ minio_secret_key | default('minioadmin') }};
+        mc mb --ignore-existing myminio/{{ minio_bucket | default('data') }};
+        mc anonymous set public myminio/{{ minio_bucket | default('data') }};
+        exit 0;
+      "
+
+{% endif %}
+  app:
+    image: {{ app_image }}
+{% if enable_postgres | default(false) or enable_minio | default(false) %}
+    depends_on:
+{% if enable_postgres | default(false) %}
+      postgres:
+        condition: service_healthy
+{% endif %}
+{% if enable_minio | default(false) %}
+      minio:
+        condition: service_healthy
+{% endif %}
+{% endif %}
+    ports:
+      - "{{ app_container_port | default(app_port) }}:{{ app_container_port | default(app_port) }}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+{% if app_environment | default({}) | length > 0 or enable_postgres | default(false) or enable_minio | default(false) %}
+    environment:
+      # TDX Attestation Proxy URL (always available)
+      TDX_ATTESTATION_PROXY_URL: http://host.docker.internal:8081
+{% if enable_postgres | default(false) %}
+      # PostgreSQL connection
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: {{ postgres_user | default('postgres') }}
+      POSTGRES_PASSWORD: {{ postgres_password | default('postgres') }}
+      POSTGRES_DATABASE: {{ postgres_database | default('app') }}
+      DATABASE_URL: "postgres://{{ postgres_user | default('postgres') }}:{{ postgres_password | default('postgres') }}@postgres:5432/{{ postgres_database | default('app') }}"
+{% endif %}
+{% if enable_minio | default(false) %}
+      # MinIO/S3 connection
+      S3_ENDPOINT: minio
+      S3_PORT: "9000"
+      S3_ACCESS_KEY: {{ minio_access_key | default('minioadmin') }}
+      S3_SECRET_KEY: {{ minio_secret_key | default('minioadmin') }}
+      S3_BUCKET: {{ minio_bucket | default('data') }}
+      S3_USE_SSL: "false"
+{% endif %}
+{% for key, value in (app_environment | default({})).items() %}
+      {{ key }}: "{{ value }}"
+{% endfor %}
+{% else %}
+    environment:
+      # TDX Attestation Proxy URL (always available)
+      TDX_ATTESTATION_PROXY_URL: http://host.docker.internal:8081
+{% endif %}
+
+{% if enable_postgres | default(false) or enable_minio | default(false) %}
+volumes:
+{% if enable_postgres | default(false) %}
+  postgres_data:
+{% endif %}
+{% if enable_minio | default(false) %}
+  minio_data:
+{% endif %}
+{% endif %}

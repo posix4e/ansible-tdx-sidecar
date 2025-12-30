@@ -1,0 +1,78 @@
+---
+# Global variables for TDX Application deployment
+# Customize these values for your application
+
+# =============================================================================
+# VM Configuration
+# =============================================================================
+vm_name: tdx-app
+vm_memory_mb: 4096
+vm_cpus: 2
+vm_disk_size_gb: 20
+
+# TDX Configuration
+tdx_policy: "0x10000000"
+tdx_enabled: true
+
+# Network Configuration
+vm_ssh_port: 2222
+
+# Guest Configuration
+guest_user: app
+# guest_password: Set via -e flag or generate at runtime for security
+guest_password: ""
+guest_ssh_authorized_key: ""
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+# REQUIRED: Docker image for your application
+# Example: app_image: "ghcr.io/your-org/your-app:latest"
+app_image: ""
+
+# Port configuration
+app_port: 8080                    # Host port to expose
+app_container_port: 8080          # Container port (defaults to app_port if not set)
+
+# Health check endpoint for readiness detection
+app_health_check_path: /health
+
+# Additional environment variables for your application
+# These will be added to the docker-compose environment
+# Example:
+#   app_environment:
+#     DATABASE_URL: "postgres://localhost:5432/mydb"
+#     API_KEY: "your-api-key"
+app_environment: {}
+
+# =============================================================================
+# Optional Services
+# =============================================================================
+# Enable postgres sidecar service
+enable_postgres: false
+postgres_user: postgres
+postgres_password: postgres
+postgres_database: app
+
+# Enable minio (S3-compatible storage) sidecar service
+enable_minio: false
+minio_access_key: minioadmin
+minio_secret_key: minioadmin
+minio_bucket: data
+
+# =============================================================================
+# TDX Attestation Configuration
+# =============================================================================
+# TDX Proxy ports (inside VM and on host)
+tdx_proxy_port: 8081              # Port inside VM
+tdx_proxy_host_port: 8082         # Port on host (forwarded)
+
+# =============================================================================
+# Paths (typically don't need to change)
+# =============================================================================
+libvirt_images_dir: /var/lib/libvirt/images
+cloud_init_dir: /tmp/tdx-cloud-init
+
+# Timeouts
+vm_ready_timeout: 300
+ssh_connect_timeout: 10
