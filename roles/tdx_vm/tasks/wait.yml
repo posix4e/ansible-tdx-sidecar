@@ -44,6 +44,24 @@
     msg: "{{ app_fail_log.stdout_lines | default(['No log available']) }}"
   when: app_check.status | default(0) not in [200, 301, 302, 308]
 
+- name: SSH into VM and check docker status
+  ansible.builtin.command:
+    cmd: >
+      sshpass -p '{{ guest_password }}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10
+      -p {{ vm_ssh_port }} {{ guest_user }}@127.0.0.1
+      'echo "=== Docker containers ===" && docker ps -a 2>&1;
+       echo "=== App service ===" && systemctl status app --no-pager 2>&1 || true;
+       echo "=== Cloud-init status ===" && cloud-init status 2>&1 || true;
+       echo "=== Curl localhost:8080 ===" && curl -s -o /dev/null -w "%{http_code}" http://localhost:{{ app_container_port | default(app_port) }} 2>&1 || echo "curl failed"'
+  register: vm_internal_check
+  ignore_errors: true
+  when: app_check.status | default(0) not in [200, 301, 302, 308]
+
+- name: Display VM internal status
+  ansible.builtin.debug:
+    msg: "{{ vm_internal_check.stdout_lines | default(['Could not SSH into VM']) }}"
+  when: app_check.status | default(0) not in [200, 301, 302, 308]
+
 - name: Check TDX attestation proxy status
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ tdx_proxy_host_port | default(8082) }}/status"
