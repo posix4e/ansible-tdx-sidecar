@@ -1,0 +1,52 @@
+name: Deploy Attestation Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/attestation-dashboard/**'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, tdx]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stop existing dashboard
+        run: |
+          cd examples/attestation-dashboard
+          docker compose down || true
+
+      - name: Build and start dashboard
+        run: |
+          cd examples/attestation-dashboard
+          docker compose up -d --build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for dashboard to be healthy
+        run: |
+          echo "Waiting for dashboard to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+              echo "Dashboard is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30 - waiting..."
+            sleep 2
+          done
+          echo "Dashboard failed to start"
+          docker compose -f examples/attestation-dashboard/docker-compose.yml logs
+          exit 1
+
+      - name: Show dashboard status
+        run: |
+          echo "=== Dashboard Status ==="
+          curl -s http://localhost:8080/api/v1/health | jq .
+          echo ""
+          echo "=== Running Containers ==="
+          docker compose -f examples/attestation-dashboard/docker-compose.yml ps
